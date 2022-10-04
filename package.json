@@ -1,0 +1,39 @@
+{
+  "name": "react-rest-cache",
+  "version": "0.1.0",
+  "description": "React library to fetch a REST API with cache and sync capabilities",
+  "source": "src/index.ts",
+  "main": "dist/main.js",
+  "module": "dist/module.js",
+  "types": "dist/types.d.ts",
+  "scripts": {
+    "watch": "parcel watch",
+    "build": "parcel build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NTag/react-rest-cache.git"
+  },
+  "keywords": [
+    "react",
+    "rest",
+    "cache",
+    "query"
+  ],
+  "author": "Basile Bruneau <basile@bruneau.email>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/NTag/react-rest-cache/issues"
+  },
+  "homepage": "https://github.com/NTag/react-rest-cache#readme",
+  "peerDependencies": {
+    "react": "^16 || ^17 || ^18"
+  },
+  "devDependencies": {
+    "@parcel/packager-ts": "^2.7.0",
+    "@parcel/transformer-typescript-types": "^2.7.0",
+    "@types/react": "^18.0.21",
+    "parcel": "^2.7.0",
+    "typescript": "4.7"
+  }
+}
