@@ -29,7 +29,7 @@ const addResponseToCacheAndNotifyObservers = (
     data.forEach((item) =>
       addResponseToCacheAndNotifyObservers(cache, item, observer)
     );
-  } else {
+  } else if (typeof data === "object") {
     if (!("id" in data) || !("__typename" in data)) {
       console.warn("No id or __typename in", data);
       return;
@@ -53,10 +53,28 @@ const addResponseToCacheAndNotifyObservers = (
     }
 
     Object.values(data).forEach((value) => {
-      if (typeof value === "object") {
-        addResponseToCacheAndNotifyObservers(cache, value, observer);
-      }
+      addResponseToCacheAndNotifyObservers(cache, value, observer);
     });
+  }
+};
+
+const replaceWithCache = (cache: Cache, data: any) => {
+  if (Array.isArray(data)) {
+    return data.map((item) => replaceWithCache(cache, item));
+  } else if (typeof data === "object") {
+    if (!("id" in data) || !("__typename" in data)) {
+      return data;
+    }
+
+    const { id, __typename: typename } = data;
+
+    if (!cache[typename] || !cache[typename][id]) {
+      return data;
+    }
+
+    return cache[typename][id].data;
+  } else {
+    return data;
   }
 };
 
@@ -79,7 +97,7 @@ export const RestCache = (options: ReactRestCacheOptions) => {
 
     addResponseToCacheAndNotifyObservers(cache, data, observer);
 
-    return data;
+    return replaceWithCache(cache, data) as RestType;
   };
 
   const unsubscribe = (observer: Observer) => {
