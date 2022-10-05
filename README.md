@@ -1,4 +1,4 @@
-# react-rest-cache
+# react-rest-cache [![npm version](https://badge.fury.io/js/react-rest-cache.svg)](https://badge.fury.io/js/react-rest-cache)
 
 This library allows to query a REST API using React hooks, and cache the results in a global cache.
 All objects in the API should have:

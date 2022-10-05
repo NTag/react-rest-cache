@@ -3,6 +3,10 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - src/**
 jobs:
   build:
     runs-on: ubuntu-latest
