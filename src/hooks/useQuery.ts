@@ -7,7 +7,7 @@ export const useQuery = <RestType>(path: string) => {
   const [, setIncrement] = useState(0); // Only way to force a re-render
   const [data, setData] = useState<RestType | undefined>(undefined);
   const [error, setError] = useState<Error | undefined>(undefined);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const rerender = useCallback(
     () => setIncrement((i) => i + 1),
     [setIncrement]
