@@ -90,7 +90,7 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     const { path, method = "GET", body, signal, params } = queryOptions;
 
     const response = await fetch(
-      `${baseUrl}${path}${params ? new URLSearchParams(params) : ""}`,
+      `${baseUrl}${path}${params ? `?${new URLSearchParams(params)}` : ""}`,
       {
         method,
         body: body ? JSON.stringify(body) : undefined,

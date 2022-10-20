@@ -4,6 +4,7 @@ import { useRestCache } from "../context";
 
 interface Options {
   params?: Record<string, string>;
+  skip?: boolean;
 }
 
 export const useQuery = <RestType>(path: string, options?: Options) => {
@@ -18,6 +19,10 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
   );
 
   useEffect(() => {
+    if (options?.skip) {
+      return;
+    }
+
     setLoading(true);
 
     const abortController = new AbortController();
@@ -47,7 +52,7 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
       abortController.abort();
       unsubscribe(rerender);
     };
-  }, [path]);
+  }, [path, JSON.stringify(options)]);
 
   return { data, error, loading };
 };
