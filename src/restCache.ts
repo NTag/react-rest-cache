@@ -7,6 +7,7 @@ interface QueryOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: any;
   signal: AbortSignal;
+  params?: Record<string, string>;
 }
 
 interface Cache {
@@ -86,13 +87,16 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     queryOptions: QueryOptions,
     observer: Observer
   ) => {
-    const { path, method = "GET", body, signal } = queryOptions;
+    const { path, method = "GET", body, signal, params } = queryOptions;
 
-    const response = await fetch(`${baseUrl}${path}`, {
-      method,
-      body: body ? JSON.stringify(body) : undefined,
-      signal,
-    });
+    const response = await fetch(
+      `${baseUrl}${path}${params ? new URLSearchParams(params) : ""}`,
+      {
+        method,
+        body: body ? JSON.stringify(body) : undefined,
+        signal,
+      }
+    );
     const data = (await response.json()) as RestType;
 
     addResponseToCacheAndNotifyObservers(cache, data, observer);

@@ -15,7 +15,7 @@ It aims to provide a similar experience to Apollo client but with REST APIs.
 ```tsx
 import { Provider, RestCache } from "react-rest-cache";
 
-const restCache = new RestCache({
+const restCache = RestCache({
   baseUrl: "https://api.example.com",
 });
 

@@ -2,7 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useRestCache } from "../context";
 
-export const useQuery = <RestType>(path: string) => {
+interface Options {
+  params?: Record<string, string>;
+}
+
+export const useQuery = <RestType>(path: string, options?: Options) => {
   const { query, unsubscribe } = useRestCache();
   const [, setIncrement] = useState(0); // Only way to force a re-render
   const [data, setData] = useState<RestType | undefined>(undefined);
@@ -19,7 +23,10 @@ export const useQuery = <RestType>(path: string) => {
     const abortController = new AbortController();
     const signal = abortController.signal;
 
-    query<RestType>({ path, signal }, rerender)
+    query<RestType>(
+      { path, signal, params: options?.params || undefined },
+      rerender
+    )
       .then((newData) => {
         setData(newData);
         setLoading(false);
