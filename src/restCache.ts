@@ -27,13 +27,13 @@ const addResponseToCacheAndNotifyObservers = (
   observer: Observer
 ) => {
   if (Array.isArray(data)) {
-    data.forEach((item) =>
+    return data.map((item) =>
       addResponseToCacheAndNotifyObservers(cache, item, observer)
     );
   } else if (typeof data === "object") {
     if (!("id" in data) || !("__typename" in data)) {
       console.warn("No id or __typename in", data);
-      return;
+      return data;
     }
 
     const { id, __typename: typename } = data;
@@ -47,36 +47,23 @@ const addResponseToCacheAndNotifyObservers = (
         data,
         observers: new Set([observer]),
       };
-    } else {
-      Object.assign(cache[typename][id].data, data);
-      cache[typename][id].observers.add(observer);
-      cache[typename][id].observers.forEach((obs) => obs());
     }
 
-    Object.values(data).forEach((value) => {
-      addResponseToCacheAndNotifyObservers(cache, value, observer);
+    Object.keys(data).forEach((key) => {
+      cache[typename][id].data[key] = addResponseToCacheAndNotifyObservers(
+        cache,
+        data[key],
+        observer
+      );
     });
-  }
-};
 
-const replaceWithCache = (cache: Cache, data: any) => {
-  if (Array.isArray(data)) {
-    return data.map((item) => replaceWithCache(cache, item));
-  } else if (typeof data === "object") {
-    if (!("id" in data) || !("__typename" in data)) {
-      return data;
-    }
-
-    const { id, __typename: typename } = data;
-
-    if (!cache[typename] || !cache[typename][id]) {
-      return data;
-    }
+    cache[typename][id].observers.forEach((obs) => obs());
+    cache[typename][id].observers.add(observer);
 
     return cache[typename][id].data;
-  } else {
-    return data;
   }
+
+  return data;
 };
 
 export const RestCache = (options: ReactRestCacheOptions) => {
@@ -99,9 +86,11 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     );
     const data = (await response.json()) as RestType;
 
-    addResponseToCacheAndNotifyObservers(cache, data, observer);
-
-    return replaceWithCache(cache, data) as RestType;
+    return addResponseToCacheAndNotifyObservers(
+      cache,
+      data,
+      observer
+    ) as RestType;
   };
 
   const unsubscribe = (observer: Observer) => {

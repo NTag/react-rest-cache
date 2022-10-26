@@ -1,10 +1,11 @@
-import { useState } from "react";
-
-import { RestCache, Provider } from "react-rest-cache";
-
 import "./App.css";
+
+import { Provider, RestCache } from "react-rest-cache";
+
 import { Search } from "./components/Search";
 import { Trips } from "./components/Trips";
+import { User } from "./components/User";
+import { useState } from "react";
 
 const restCache = RestCache({ baseUrl: "/api/" });
 
@@ -21,6 +22,7 @@ function App() {
           Trips B: <Trips />
         </div>
       </div>
+      <User />
       <div>
         <button onClick={() => setIsSearchActive((isActive) => !isActive)}>
           Toggle search

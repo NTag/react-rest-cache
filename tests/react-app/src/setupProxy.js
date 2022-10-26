@@ -28,4 +28,20 @@ module.exports = function (app) {
       },
     });
   });
+
+  app.post("/api/users", (req, res) => {
+    res.send({
+      __typename: "User",
+      id: "user1",
+      name: "User 1",
+      trips: [
+        {
+          id: "trip1",
+          __typename: "Trip",
+          name: `Trip updated - ${req.body}`,
+          duration: "3 hours",
+        },
+      ],
+    });
+  });
 };

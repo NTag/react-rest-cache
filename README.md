@@ -29,7 +29,7 @@ const App = () => {
 ```
 
 ```tsx
-import { useQuery } from "react-rest-cache";
+import { useQuery, useMutation } from "react-rest-cache";
 
 type Post = {
   id: string;
@@ -81,6 +81,20 @@ const MyComponent = () => {
     </div>
   );
 };
+
+const MyButton = () => {
+  const [mutate, { data, error, loading }] = useMutation<User>(`/users/id2`, {
+    method: "PUT",
+  });
+
+  return (
+    <div>
+      {error ? <div>Error: {error.message}</div> : null}
+      {loading ? <div>Loading…</div> : null}
+      <button onClick={() => mutate({ body: { name: "John" } })}>Update</button>
+    </div>
+  );
+};
 ```
 
 ## Roadmap
@@ -91,8 +105,6 @@ Features will be added progressively, while staying as simple as possible. This 
 
 What I plan to add:
 
-- `useMutation`: to mutate the API on-demand;
-- support for query params;
 - basic support for pagination;
 - maybe simple cache control;
 - a refetch option.
