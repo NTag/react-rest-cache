@@ -1,5 +1,6 @@
 interface ReactRestCacheOptions {
   baseUrl: string;
+  fetchOptions?: Partial<RequestInit>;
 }
 
 interface QueryOptions {
@@ -68,7 +69,7 @@ const addResponseToCacheAndNotifyObservers = (
 
 export const RestCache = (options: ReactRestCacheOptions) => {
   const cache: Cache = {};
-  const { baseUrl } = options;
+  const { baseUrl, fetchOptions } = options;
 
   const query = async <RestType>(
     queryOptions: QueryOptions,
@@ -82,6 +83,7 @@ export const RestCache = (options: ReactRestCacheOptions) => {
         method,
         body: body ? JSON.stringify(body) : undefined,
         signal,
+        ...(fetchOptions || {}),
       }
     );
     const data = (await response.json()) as RestType;
