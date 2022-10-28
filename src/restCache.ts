@@ -1,3 +1,5 @@
+import { FetchError } from "./error";
+
 interface ReactRestCacheOptions {
   baseUrl: string;
   fetchOptions?: Partial<RequestInit>;
@@ -92,7 +94,9 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     );
 
     if (!response.ok) {
-      throw new Error(await response.json());
+      const error = new FetchError(response);
+      await error.process();
+      throw error;
     }
 
     const data = (await response.json()) as RestType;
