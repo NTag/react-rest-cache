@@ -90,6 +90,11 @@ export const RestCache = (options: ReactRestCacheOptions) => {
         ...(fetchOptions || {}),
       }
     );
+
+    if (!response.ok) {
+      throw new Error(await response.json());
+    }
+
     const data = (await response.json()) as RestType;
 
     return addResponseToCacheAndNotifyObservers(
