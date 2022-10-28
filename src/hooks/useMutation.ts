@@ -69,5 +69,5 @@ export const useMutation = <RestType>(path: string, options?: Options) => {
     };
   }, []);
 
-  return [mutate, { data, error, loading }];
+  return [mutate, { data, error, loading }] as const;
 };
