@@ -42,6 +42,8 @@ export const useMutation = <RestType>(path: string, options?: Options) => {
         .then((newData) => {
           setData(newData);
           setLoading(false);
+
+          return newData as RestType;
         })
         .catch((error) => {
           if (signal.aborted) {
@@ -54,7 +56,7 @@ export const useMutation = <RestType>(path: string, options?: Options) => {
           setError(error);
           setLoading(false);
 
-          throw error;
+          return Promise.reject(error);
         });
     },
     [path, JSON.stringify(options), abortController]
