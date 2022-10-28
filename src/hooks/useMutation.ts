@@ -24,12 +24,12 @@ export const useMutation = <RestType>(path: string, options?: Options) => {
   const [abortController, setAbortController] = useState(new AbortController());
 
   const mutate = useCallback(
-    async (mutationOptions: MutateOptions) => {
+    (mutationOptions: MutateOptions) => {
       setLoading(true);
 
       const signal = abortController.signal;
 
-      query<RestType>(
+      return query<RestType>(
         {
           path,
           signal,
