@@ -29,11 +29,17 @@ const addResponseToCacheAndNotifyObservers = (
   data: any,
   observer: Observer
 ) => {
+  if (!data) {
+    return null;
+  }
+
   if (Array.isArray(data)) {
     return data.map((item) =>
       addResponseToCacheAndNotifyObservers(cache, item, observer)
     );
-  } else if (typeof data === "object") {
+  }
+
+  if (typeof data === "object") {
     if (!("id" in data) || !("__typename" in data)) {
       console.warn("No id or __typename in", data);
       return data;
