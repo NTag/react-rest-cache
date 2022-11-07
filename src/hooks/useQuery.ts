@@ -18,11 +18,7 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
     [setIncrement]
   );
 
-  useEffect(() => {
-    if (options?.skip) {
-      return;
-    }
-
+  const refetch = useCallback(() => {
     setLoading(true);
 
     const abortController = new AbortController();
@@ -54,5 +50,13 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
     };
   }, [path, JSON.stringify(options)]);
 
-  return { data, error, loading };
+  useEffect(() => {
+    if (options?.skip) {
+      return;
+    }
+
+    return refetch();
+  }, [refetch]);
+
+  return { data, error, loading, refetch };
 };
