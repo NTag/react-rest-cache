@@ -42,6 +42,13 @@ const addResponseToCacheAndNotifyObservers = (
   if (typeof data === "object") {
     if (!("id" in data) || !("__typename" in data)) {
       console.warn("No id or __typename in", data);
+      Object.keys(data).forEach((key) => {
+        data[key] = addResponseToCacheAndNotifyObservers(
+          cache,
+          data[key],
+          observer
+        );
+      });
       return data;
     }
 
