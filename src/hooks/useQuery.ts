@@ -5,12 +5,18 @@ import { useRestCache } from "../context";
 interface Options {
   params?: Record<string, string>;
   skip?: boolean;
+  prefetchFromCache?: {
+    singleObject: {
+      __typename: string;
+      id: string;
+    };
+  };
 }
 
 type MergeFn<T> = (prevData: T, newData: T) => T;
 
 export const useQuery = <RestType>(path: string, options?: Options) => {
-  const { query, unsubscribe } = useRestCache();
+  const { query, unsubscribe, get } = useRestCache();
   const [, setIncrement] = useState(0); // Only way to force a re-render
   const [data, setData] = useState<RestType | undefined>(undefined);
   const [error, setError] = useState<Error | undefined>(undefined);
@@ -96,5 +102,18 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
     };
   }, [refetch]);
 
-  return { data, error, loading, refetch, fetchMore, loadingMore };
+  const dataFromQueryOrCache =
+    data ??
+    (options?.prefetchFromCache
+      ? get(options.prefetchFromCache.singleObject)
+      : undefined);
+
+  return {
+    data: dataFromQueryOrCache,
+    error,
+    loading,
+    refetch,
+    fetchMore,
+    loadingMore,
+  };
 };

@@ -129,7 +129,17 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     });
   };
 
-  return { query, unsubscribe };
+  const get = <RestType>({
+    __typename,
+    id,
+  }: {
+    __typename: string;
+    id: string;
+  }): RestType => {
+    return cache[__typename]?.[id]?.data;
+  };
+
+  return { query, unsubscribe, get };
 };
 
 export type RestCacheType = ReturnType<typeof RestCache>;
