@@ -8,7 +8,8 @@ interface Options {
 }
 
 interface MutateOptions {
-  body: any;
+  body?: any;
+  subPath?: string;
 }
 
 export const useMutation = <RestType>(path: string, options?: Options) => {
@@ -31,7 +32,9 @@ export const useMutation = <RestType>(path: string, options?: Options) => {
 
       return query<RestType>(
         {
-          path,
+          path: mutationOptions.subPath
+            ? `${path}${mutationOptions.subPath}`
+            : path,
           signal,
           params: options?.params || undefined,
           method: options.method,

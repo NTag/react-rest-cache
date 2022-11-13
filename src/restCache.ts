@@ -92,19 +92,19 @@ export const RestCache = (options: ReactRestCacheOptions) => {
   ) => {
     const { path, method = "GET", body, signal, params } = queryOptions;
 
-    const response = await fetch(
-      `${baseUrl}${path}${params ? `?${new URLSearchParams(params)}` : ""}`,
-      {
-        method,
-        body: body ? JSON.stringify(body) : undefined,
-        signal,
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        ...(fetchOptions || {}),
-      }
-    );
+    const url = `${baseUrl}${path}${
+      params ? `?${new URLSearchParams(params)}` : ""
+    }`;
+    const response = await fetch(url, {
+      method,
+      body: body ? JSON.stringify(body) : undefined,
+      signal,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      ...(fetchOptions || {}),
+    });
 
     if (!response.ok) {
       const error = new FetchError(response);
