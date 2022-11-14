@@ -8,6 +8,10 @@ export class FetchError extends Error {
 
   async process() {
     this.status = this.response.status;
-    this.data = await this.response.json();
+    try {
+      this.data = await this.response.json();
+    } catch (e) {
+      this.data = await this.response.text();
+    }
   }
 }

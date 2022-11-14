@@ -1,6 +1,6 @@
 {
   "name": "react-rest-cache",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "React library to fetch a REST API with cache and sync capabilities",
   "source": "src/index.ts",
   "main": "dist/main.js",
