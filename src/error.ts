@@ -8,9 +8,9 @@ export class FetchError extends Error {
 
   async process() {
     this.status = this.response.status;
-    try {
+    if (this.response.headers.get("content-type").includes("json")) {
       this.data = await this.response.json();
-    } catch (e) {
+    } else {
       this.data = await this.response.text();
     }
   }
