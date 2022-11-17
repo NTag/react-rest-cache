@@ -29,8 +29,8 @@ const addResponseToCacheAndNotifyObservers = (
   data: any,
   observer: Observer
 ) => {
-  if (!data) {
-    return null;
+  if (data === undefined || data === null) {
+    return data;
   }
 
   if (Array.isArray(data)) {
