@@ -45,6 +45,7 @@ export const useMutation = <RestType>(path: string, options?: Options) => {
         .then((newData) => {
           setData(newData);
           setLoading(false);
+          setError(undefined);
 
           return newData as RestType;
         })
