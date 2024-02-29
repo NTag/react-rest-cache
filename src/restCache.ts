@@ -27,7 +27,8 @@ type Observer = () => void;
 const addResponseToCacheAndNotifyObservers = (
   cache: Cache,
   data: any,
-  observer: Observer
+  observer: Observer,
+  observersToCall: Set<Observer>
 ) => {
   if (data === undefined || data === null) {
     return data;
@@ -35,18 +36,24 @@ const addResponseToCacheAndNotifyObservers = (
 
   if (Array.isArray(data)) {
     return data.map((item) =>
-      addResponseToCacheAndNotifyObservers(cache, item, observer)
+      addResponseToCacheAndNotifyObservers(
+        cache,
+        item,
+        observer,
+        observersToCall
+      )
     );
   }
 
   if (typeof data === "object") {
     if (!("id" in data) || !("__typename" in data)) {
-      console.warn("No id or __typename in", data);
+      // console.warn("No id or __typename in", data);
       Object.keys(data).forEach((key) => {
         data[key] = addResponseToCacheAndNotifyObservers(
           cache,
           data[key],
-          observer
+          observer,
+          observersToCall
         );
       });
       return data;
@@ -69,11 +76,12 @@ const addResponseToCacheAndNotifyObservers = (
       cache[typename][id].data[key] = addResponseToCacheAndNotifyObservers(
         cache,
         data[key],
-        observer
+        observer,
+        observersToCall
       );
     });
 
-    cache[typename][id].observers.forEach((obs) => obs());
+    cache[typename][id].observers.forEach((obs) => observersToCall.add(obs));
     cache[typename][id].observers.add(observer);
 
     return cache[typename][id].data;
@@ -114,11 +122,15 @@ export const RestCache = (options: ReactRestCacheOptions) => {
 
     const data = (await response.json()) as RestType;
 
-    return addResponseToCacheAndNotifyObservers(
+    const observersToCall = new Set<Observer>();
+    const result = addResponseToCacheAndNotifyObservers(
       cache,
       data,
-      observer
+      observer,
+      observersToCall
     ) as RestType;
+    observersToCall.forEach((obs) => obs());
+    return result;
   };
 
   const unsubscribe = (observer: Observer) => {
