@@ -107,11 +107,12 @@ export const RestCache = (options: ReactRestCacheOptions) => {
       method,
       body: body ? JSON.stringify(body) : undefined,
       signal,
+      ...(fetchOptions || {}),
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
+        ...(fetchOptions?.headers || {}),
       },
-      ...(fetchOptions || {}),
     });
 
     if (!response.ok) {
