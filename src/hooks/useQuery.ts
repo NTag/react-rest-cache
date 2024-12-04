@@ -42,6 +42,7 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
       .then((newData) => {
         setData(newData);
         setLoading(false);
+        setError(undefined);
       })
       .catch((error) => {
         if (signal.aborted) {
@@ -53,6 +54,7 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
 
         setError(error);
         setLoading(false);
+        setData(undefined);
       });
   }, [path, JSON.stringify(options)]);
 
