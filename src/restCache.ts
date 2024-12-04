@@ -121,6 +121,12 @@ export const RestCache = (options: ReactRestCacheOptions) => {
       throw error;
     }
 
+    // We check the content type to avoid parsing errors
+    // when the response is not a valid JSON.
+    if (!response.headers.get("content-type")?.includes("json")) {
+      return;
+    }
+
     const data = (await response.json()) as RestType;
 
     const observersToCall = new Set<Observer>();

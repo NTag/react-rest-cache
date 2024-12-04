@@ -4,7 +4,7 @@ import { useRestCache } from "../context";
 
 interface Options {
   params?: Record<string, string>;
-  method: "POST" | "PUT" | "PATCH" | "DELETE";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 }
 
 interface MutateOptions {
@@ -25,20 +25,20 @@ export const useMutation = <RestType>(path: string, options?: Options) => {
   const [abortController, setAbortController] = useState(new AbortController());
 
   const mutate = useCallback(
-    (mutationOptions: MutateOptions) => {
+    (mutationOptions?: MutateOptions) => {
       setLoading(true);
 
       const signal = abortController.signal;
 
       return query<RestType>(
         {
-          path: mutationOptions.subPath
+          path: mutationOptions?.subPath
             ? `${path}${mutationOptions.subPath}`
             : path,
           signal,
           params: options?.params || undefined,
           method: options.method,
-          body: mutationOptions.body,
+          body: mutationOptions?.body,
         },
         rerender
       )
