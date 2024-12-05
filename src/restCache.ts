@@ -2,7 +2,9 @@ import { FetchError } from "./error";
 
 interface ReactRestCacheOptions {
   baseUrl: string;
-  fetchOptions?: Partial<RequestInit>;
+  fetchOptions?: Partial<RequestInit> & {
+    headers?: () => HeadersInit;
+  };
 }
 
 interface QueryOptions {
@@ -111,7 +113,9 @@ export const RestCache = (options: ReactRestCacheOptions) => {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        ...(fetchOptions?.headers || {}),
+        ...(typeof fetchOptions?.headers === "function"
+          ? fetchOptions.headers()
+          : fetchOptions?.headers || {}),
       },
     });
 
