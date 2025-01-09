@@ -20,7 +20,7 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
   const [, setIncrement] = useState(0); // Only way to force a re-render
   const [data, setData] = useState<RestType | undefined>(undefined);
   const [error, setError] = useState<Error | undefined>(undefined);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(options?.skip ? false : true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [abortControllers] = useState<Set<AbortController>>(new Set());
   const rerender = useCallback(
@@ -102,7 +102,7 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
       });
       unsubscribe(rerender);
     };
-  }, [refetch]);
+  }, [refetch, options?.skip]);
 
   const dataFromQueryOrCache =
     data ??
