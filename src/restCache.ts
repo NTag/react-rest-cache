@@ -105,14 +105,30 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     const url = `${baseUrl}${path}${
       params ? `?${new URLSearchParams(params)}` : ""
     }`;
+    const getBody = () => {
+      if (body instanceof FormData) {
+        return body;
+      }
+
+      if (body) {
+        return JSON.stringify(body);
+      }
+
+      return body;
+    };
+
     const response = await fetch(url, {
       method,
-      body: body ? JSON.stringify(body) : undefined,
+      body: getBody(),
       signal,
       ...(fetchOptions || {}),
       headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
+        ...(body instanceof FormData
+          ? {}
+          : {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            }),
         ...(typeof fetchOptions?.headers === "function"
           ? fetchOptions.headers()
           : fetchOptions?.headers || {}),
