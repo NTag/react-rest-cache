@@ -92,6 +92,12 @@ const addResponseToCacheAndNotifyObservers = (
   return data;
 };
 
+const removeUndefinedParams = (params: Record<string, string>) => {
+  return Object.fromEntries(
+    Object.entries(params).filter(([_, value]) => value !== undefined)
+  );
+};
+
 export const RestCache = (options: ReactRestCacheOptions) => {
   const cache: Cache = {};
   const { baseUrl, fetchOptions } = options;
@@ -103,7 +109,7 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     const { path, method = "GET", body, signal, params } = queryOptions;
 
     const url = `${baseUrl}${path}${
-      params ? `?${new URLSearchParams(params)}` : ""
+      params ? `?${new URLSearchParams(removeUndefinedParams(params))}` : ""
     }`;
     const getBody = () => {
       if (body instanceof FormData) {
