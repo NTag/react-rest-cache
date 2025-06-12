@@ -11,6 +11,7 @@ interface Options {
       id: string;
     };
   };
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 }
 
 type MergeFn<T> = (prevData: T, newData: T) => T;
@@ -36,7 +37,12 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
     const signal = abortController.signal;
 
     query<RestType>(
-      { path, signal, params: options?.params || undefined },
+      {
+        path,
+        signal,
+        params: options?.params || undefined,
+        method: options?.method || "GET",
+      },
       rerender
     )
       .then((newData) => {
@@ -59,7 +65,7 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
   }, [path, JSON.stringify(options)]);
 
   const fetchMore = useCallback(
-    (mergeFn: MergeFn<RestType>, options?: Pick<Options, "params">) => {
+    (mergeFn: MergeFn<RestType>, optionsMore?: Pick<Options, "params">) => {
       setLoadingMore(true);
 
       const abortController = new AbortController();
@@ -67,7 +73,12 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
       const signal = abortController.signal;
 
       query<RestType>(
-        { path, signal, params: options?.params || undefined },
+        {
+          path,
+          signal,
+          params: optionsMore?.params || undefined,
+          method: options?.method || "GET",
+        },
         rerender
       )
         .then((newData) => {
