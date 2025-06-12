@@ -12,6 +12,7 @@ interface Options {
     };
   };
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  body?: any;
 }
 
 type MergeFn<T> = (prevData: T, newData: T) => T;
@@ -42,6 +43,7 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
         signal,
         params: options?.params || undefined,
         method: options?.method || "GET",
+        body: options?.body || undefined,
       },
       rerender
     )
@@ -78,6 +80,7 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
           signal,
           params: optionsMore?.params || undefined,
           method: options?.method || "GET",
+          body: options?.body || undefined,
         },
         rerender
       )
