@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useRestCache } from "../context";
 import type { HttpMethod } from "../restCache";
+import { useCacheSubscription } from "./useCacheSubscription";
 
 interface Options {
   params?: Record<string, string>;
@@ -29,22 +30,18 @@ interface UseQueryResult<T> {
 
 export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> => {
   const { query, unsubscribe, get } = useRestCache();
-  const [, setIncrement] = useState(0); // Only way to force a re-render
+  const notify = useCacheSubscription();
   const [data, setData] = useState<T | undefined>(undefined);
   const [error, setError] = useState<Error | undefined>(undefined);
   const [loading, setLoading] = useState(options?.skip ? false : true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [abortControllers] = useState<Set<AbortController>>(new Set());
-  const rerender = useCallback(
-    () => setIncrement((i) => i + 1),
-    [setIncrement]
-  );
+  const abortControllersRef = useRef(new Set<AbortController>());
 
   const refetch = useCallback(() => {
     setLoading(true);
 
     const abortController = new AbortController();
-    abortControllers.add(abortController);
+    abortControllersRef.current.add(abortController);
     const signal = abortController.signal;
 
     query<T>(
@@ -55,7 +52,7 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
         method: options?.method || "GET",
         body: options?.body || undefined,
       },
-      rerender
+      notify
     )
       .then((newData) => {
         setData(newData);
@@ -64,9 +61,6 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
       })
       .catch((error) => {
         if (signal.aborted) {
-          // If the request has been cancelled,
-          // it'll raise an error, that we don't
-          // want to display.
           return;
         }
 
@@ -81,7 +75,7 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
       setLoadingMore(true);
 
       const abortController = new AbortController();
-      abortControllers.add(abortController);
+      abortControllersRef.current.add(abortController);
       const signal = abortController.signal;
 
       query<T>(
@@ -92,7 +86,7 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
           method: options?.method || "GET",
           body: options?.body || undefined,
         },
-        rerender
+        notify
       )
         .then((newData) => {
           setData(mergeFn(data as T, newData));
@@ -100,9 +94,6 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
         })
         .catch((error) => {
           if (signal.aborted) {
-            // If the request has been cancelled,
-            // it'll raise an error, that we don't
-            // want to display.
             return;
           }
 
@@ -121,10 +112,10 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
     refetch();
 
     return () => {
-      abortControllers.forEach((abortController) => {
+      abortControllersRef.current.forEach((abortController) => {
         abortController.abort();
       });
-      unsubscribe(rerender);
+      unsubscribe(notify);
     };
   }, [refetch, options?.skip]);
 

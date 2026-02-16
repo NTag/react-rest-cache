@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useRestCache } from "../context";
 import type { HttpMethod } from "../restCache";
+import { useCacheSubscription } from "./useCacheSubscription";
 
 interface Options {
   params?: Record<string, string>;
@@ -20,21 +21,19 @@ type UseMutationResult<T> = readonly [
 
 export const useMutation = <T>(path: string, options?: Options): UseMutationResult<T> => {
   const { query, unsubscribe } = useRestCache();
-  const [, setIncrement] = useState(0); // Only way to force a re-render
+  const notify = useCacheSubscription();
   const [data, setData] = useState<T | undefined>(undefined);
   const [error, setError] = useState<Error | undefined>(undefined);
   const [loading, setLoading] = useState(false);
-  const rerender = useCallback(
-    () => setIncrement((i) => i + 1),
-    [setIncrement]
-  );
-  const [abortController, setAbortController] = useState(new AbortController());
+  const abortControllerRef = useRef(new AbortController());
 
   const mutate = useCallback(
     (mutationOptions?: MutateOptions) => {
-      setLoading(true);
+      abortControllerRef.current.abort();
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
 
-      const signal = abortController.signal;
+      setLoading(true);
 
       return query<T>(
         {
@@ -46,7 +45,7 @@ export const useMutation = <T>(path: string, options?: Options): UseMutationResu
           method: options.method,
           body: mutationOptions?.body,
         },
-        rerender
+        notify
       )
         .then((newData) => {
           setData(newData);
@@ -57,9 +56,6 @@ export const useMutation = <T>(path: string, options?: Options): UseMutationResu
         })
         .catch((error) => {
           if (signal.aborted) {
-            // If the request has been cancelled,
-            // it'll raise an error, that we don't
-            // want to display.
             return;
           }
 
@@ -69,15 +65,13 @@ export const useMutation = <T>(path: string, options?: Options): UseMutationResu
           return Promise.reject(error);
         });
     },
-    [path, JSON.stringify(options), abortController]
+    [path, JSON.stringify(options)]
   );
 
   useEffect(() => {
-    setAbortController(new AbortController());
-
     return () => {
-      abortController.abort();
-      unsubscribe(rerender);
+      abortControllerRef.current.abort();
+      unsubscribe(notify);
     };
   }, []);
 
