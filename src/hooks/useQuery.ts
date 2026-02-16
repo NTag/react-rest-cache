@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useRestCache } from "../context";
+import type { HttpMethod } from "../restCache";
 
 interface Options {
   params?: Record<string, string>;
@@ -11,16 +12,25 @@ interface Options {
       id: string;
     };
   };
-  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  method?: HttpMethod;
   body?: any;
 }
 
 type MergeFn<T> = (prevData: T, newData: T) => T;
 
-export const useQuery = <RestType>(path: string, options?: Options) => {
+interface UseQueryResult<T> {
+  data: T | undefined;
+  error: Error | undefined;
+  loading: boolean;
+  refetch: () => void;
+  fetchMore: (mergeFn: MergeFn<T>, optionsMore?: Pick<Options, "params">) => void;
+  loadingMore: boolean;
+}
+
+export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> => {
   const { query, unsubscribe, get } = useRestCache();
   const [, setIncrement] = useState(0); // Only way to force a re-render
-  const [data, setData] = useState<RestType | undefined>(undefined);
+  const [data, setData] = useState<T | undefined>(undefined);
   const [error, setError] = useState<Error | undefined>(undefined);
   const [loading, setLoading] = useState(options?.skip ? false : true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -37,7 +47,7 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
     abortControllers.add(abortController);
     const signal = abortController.signal;
 
-    query<RestType>(
+    query<T>(
       {
         path,
         signal,
@@ -55,7 +65,7 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
       .catch((error) => {
         if (signal.aborted) {
           // If the request has been cancelled,
-          // it’ll raise an error, that we don’t
+          // it'll raise an error, that we don't
           // want to display.
           return;
         }
@@ -67,14 +77,14 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
   }, [path, JSON.stringify(options)]);
 
   const fetchMore = useCallback(
-    (mergeFn: MergeFn<RestType>, optionsMore?: Pick<Options, "params">) => {
+    (mergeFn: MergeFn<T>, optionsMore?: Pick<Options, "params">) => {
       setLoadingMore(true);
 
       const abortController = new AbortController();
       abortControllers.add(abortController);
       const signal = abortController.signal;
 
-      query<RestType>(
+      query<T>(
         {
           path,
           signal,
@@ -85,13 +95,13 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
         rerender
       )
         .then((newData) => {
-          setData(mergeFn(data as RestType, newData));
+          setData(mergeFn(data as T, newData));
           setLoadingMore(false);
         })
         .catch((error) => {
           if (signal.aborted) {
             // If the request has been cancelled,
-            // it’ll raise an error, that we don’t
+            // it'll raise an error, that we don't
             // want to display.
             return;
           }
@@ -118,10 +128,10 @@ export const useQuery = <RestType>(path: string, options?: Options) => {
     };
   }, [refetch, options?.skip]);
 
-  const dataFromQueryOrCache =
+  const dataFromQueryOrCache: T | undefined =
     data ??
     (options?.prefetchFromCache
-      ? get(options.prefetchFromCache.singleObject)
+      ? get<T>(options.prefetchFromCache.singleObject)
       : undefined);
 
   return {

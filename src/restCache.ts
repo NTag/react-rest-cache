@@ -7,9 +7,11 @@ interface ReactRestCacheOptions {
   };
 }
 
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
 export interface QueryOptions {
   path: string;
-  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  method?: HttpMethod;
   body?: any;
   signal: AbortSignal;
   params?: Record<string, string>;
@@ -174,13 +176,13 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     });
   };
 
-  const get = <RestType>({
+  const get = <T>({
     __typename,
     id,
   }: {
     __typename: string;
     id: string;
-  }): RestType => {
+  }): T | undefined => {
     return cache[__typename]?.[id]?.data;
   };
 

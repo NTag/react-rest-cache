@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useRestCache } from "../context";
+import type { HttpMethod } from "../restCache";
 
 interface Options {
   params?: Record<string, string>;
-  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  method: HttpMethod;
 }
 
 interface MutateOptions {
@@ -12,10 +13,15 @@ interface MutateOptions {
   subPath?: string;
 }
 
-export const useMutation = <RestType>(path: string, options?: Options) => {
+type UseMutationResult<T> = readonly [
+  (mutationOptions?: MutateOptions) => Promise<T | void>,
+  { data: T | undefined; error: Error | undefined; loading: boolean },
+];
+
+export const useMutation = <T>(path: string, options?: Options): UseMutationResult<T> => {
   const { query, unsubscribe } = useRestCache();
   const [, setIncrement] = useState(0); // Only way to force a re-render
-  const [data, setData] = useState<RestType | undefined>(undefined);
+  const [data, setData] = useState<T | undefined>(undefined);
   const [error, setError] = useState<Error | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const rerender = useCallback(
@@ -30,7 +36,7 @@ export const useMutation = <RestType>(path: string, options?: Options) => {
 
       const signal = abortController.signal;
 
-      return query<RestType>(
+      return query<T>(
         {
           path: mutationOptions?.subPath
             ? `${path}${mutationOptions.subPath}`
@@ -47,12 +53,12 @@ export const useMutation = <RestType>(path: string, options?: Options) => {
           setLoading(false);
           setError(undefined);
 
-          return newData as RestType;
+          return newData as T;
         })
         .catch((error) => {
           if (signal.aborted) {
             // If the request has been cancelled,
-            // it’ll raise an error, that we don’t
+            // it'll raise an error, that we don't
             // want to display.
             return;
           }
