@@ -1,9 +1,9 @@
-import React, { PropsWithChildren } from "react";
+import { createContext, useContext, type PropsWithChildren } from "react";
 import { RestCache, RestCacheType } from "./restCache";
 
 const defaultCache = RestCache({ baseUrl: "/api/" });
 
-const Context = React.createContext<RestCacheType>(defaultCache);
+const Context = createContext<RestCacheType>(defaultCache);
 
 export const Provider = ({
   restCache,
@@ -12,4 +12,4 @@ export const Provider = ({
   <Context.Provider value={restCache}>{children}</Context.Provider>
 );
 
-export const useRestCache = () => React.useContext(Context);
+export const useRestCache = () => useContext(Context);
