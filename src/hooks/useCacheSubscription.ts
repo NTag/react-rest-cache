@@ -19,7 +19,7 @@ export const useCacheSubscription = (): (() => void) => {
 
   const getSnapshot = useCallback(() => versionRef.current, []);
 
-  useSyncExternalStore(subscribe, getSnapshot);
+  useSyncExternalStore(subscribe, getSnapshot, () => 0);
 
   return useCallback(() => {
     versionRef.current++;
