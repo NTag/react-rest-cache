@@ -100,8 +100,13 @@ const removeUndefinedParams = (params: Record<string, string>) => {
   );
 };
 
+export interface DehydratedState {
+  queries: Record<string, any>;
+}
+
 export const RestCache = (options: ReactRestCacheOptions) => {
   const cache: Cache = {};
+  const queryCache: Record<string, any> = {};
   const { baseUrl, fetchOptions } = options;
 
   const query = async <RestType>(
@@ -186,7 +191,99 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     return cache[__typename]?.[id]?.data;
   };
 
-  return { query, unsubscribe, get };
+  const getQueryKey = (
+    path: string,
+    queryOptions?: {
+      params?: Record<string, string>;
+      method?: HttpMethod;
+      body?: any;
+    }
+  ) => {
+    return JSON.stringify({
+      path,
+      params: queryOptions?.params,
+      method: queryOptions?.method || "GET",
+      body: queryOptions?.body,
+    });
+  };
+
+  const prefetchQuery = async <T>(
+    path: string,
+    prefetchOptions?: {
+      params?: Record<string, string>;
+      method?: HttpMethod;
+      body?: any;
+    }
+  ): Promise<T | undefined> => {
+    const key = getQueryKey(path, prefetchOptions);
+    const abortController = new AbortController();
+    const noop = () => {};
+    const data = await query<T>(
+      {
+        path,
+        method: prefetchOptions?.method || "GET",
+        body: prefetchOptions?.body,
+        signal: abortController.signal,
+        params: prefetchOptions?.params,
+      },
+      noop
+    );
+    queryCache[key] = data;
+    return data;
+  };
+
+  const dehydrate = (): DehydratedState => {
+    return { queries: { ...queryCache } };
+  };
+
+  const hydrate = (state: DehydratedState) => {
+    Object.assign(queryCache, state.queries);
+  };
+
+  const getHydratedData = <T>(key: string): T | undefined => {
+    if (key in queryCache) {
+      return queryCache[key] as T;
+    }
+    return undefined;
+  };
+
+  const setQueryData = <T>(
+    path: string,
+    data: T,
+    setQueryDataOptions?: {
+      params?: Record<string, string>;
+      method?: HttpMethod;
+      body?: any;
+    }
+  ) => {
+    const key = getQueryKey(path, setQueryDataOptions);
+    queryCache[key] = data;
+  };
+
+  const ingest = <T>(data: T, observer: Observer): T => {
+    const observersToCall = new Set<Observer>();
+    const result = addResponseToCacheAndNotifyObservers(
+      cache,
+      data,
+      observer,
+      observersToCall
+    ) as T;
+    observersToCall.forEach((obs) => obs());
+    return result;
+  };
+
+  return {
+    query,
+    unsubscribe,
+    get,
+    getQueryKey,
+    prefetchQuery,
+    dehydrate,
+    hydrate,
+    getHydratedData,
+    setQueryData,
+    ingest,
+  };
 };
 
 export type RestCacheType = ReturnType<typeof RestCache>;

@@ -29,11 +29,19 @@ interface UseQueryResult<T> {
 }
 
 export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> => {
-  const { query, unsubscribe, get } = useRestCache();
+  const { query, unsubscribe, get, getQueryKey, getHydratedData } = useRestCache();
   const notify = useCacheSubscription();
-  const [data, setData] = useState<T | undefined>(undefined);
+
+  const queryKey = getQueryKey(path, {
+    params: options?.params,
+    method: options?.method,
+    body: options?.body,
+  });
+
+  const [hydratedData] = useState(() => getHydratedData<T>(queryKey));
+  const [data, setData] = useState<T | undefined>(hydratedData ?? undefined);
   const [error, setError] = useState<Error | undefined>(undefined);
-  const [loading, setLoading] = useState(options?.skip ? false : true);
+  const [loading, setLoading] = useState(options?.skip || hydratedData !== undefined ? false : true);
   const [loadingMore, setLoadingMore] = useState(false);
   const abortControllersRef = useRef(new Set<AbortController>());
 

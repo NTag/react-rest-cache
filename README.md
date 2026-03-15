@@ -170,6 +170,109 @@ const MyButton = () => {
 
 When a mutation returns an object with the same `__typename` and `id` as a cached object, the cache is updated and all components displaying that object re-render automatically.
 
+## SSR / Hydration
+
+The library supports server-side rendering with cache hydration. This lets you prefetch data on the server so the first client render has data immediately (no loading flash).
+
+Hydration is fully opt-in. If you don't call `hydrate()`, the hooks behave exactly as before (fetch on mount). When hydrated data is available:
+
+- `useQuery` uses it as initial data (no loading state on first render), then refetches in the background.
+- `useSuspenseQuery` renders immediately without suspending, then registers cache observers so mutations still trigger re-renders.
+
+### API
+
+- `cache.prefetchQuery(path, options?)` — fetches data via HTTP and stores it in the query cache.
+- `cache.setQueryData(path, data, options?)` — injects data directly into the query cache (e.g. from a database query).
+- `cache.dehydrate()` — serializes the query cache into a plain object for transport to the client.
+- `cache.hydrate(state)` — populates the query cache from a dehydrated state.
+
+### Example with React Router (framework mode)
+
+Here is a full example using [React Router v7 in framework mode](https://reactrouter.com/start/framework/routing) with data loaded from Prisma in the route loader.
+
+**`app/restCache.ts`** — shared cache instance:
+
+```ts
+import { RestCache } from "react-rest-cache";
+
+export const restCache = RestCache({
+  baseUrl: "https://api.example.com",
+});
+```
+
+**`app/root.tsx`** — hydrate the cache on the client:
+
+```tsx
+import { Links, Meta, Outlet, Scripts, useLoaderData } from "react-router";
+import { Provider, type DehydratedState } from "react-rest-cache";
+import { restCache } from "./restCache";
+
+export function loader() {
+  return { dehydratedState: restCache.dehydrate() };
+}
+
+export default function Root() {
+  const { dehydratedState } = useLoaderData<typeof loader>();
+  restCache.hydrate(dehydratedState);
+
+  return (
+    <html>
+      <head>
+        <Meta />
+        <Links />
+      </head>
+      <body>
+        <Provider restCache={restCache}>
+          <Outlet />
+        </Provider>
+        <Scripts />
+      </body>
+    </html>
+  );
+}
+```
+
+**`app/routes/users.tsx`** — prefetch data in the loader, render with no loading flash:
+
+```tsx
+import { useLoaderData } from "react-router";
+import { useQuery } from "react-rest-cache";
+import { restCache } from "../restCache";
+import { prisma } from "../db.server";
+
+type User = {
+  __typename: "User";
+  id: string;
+  name: string;
+};
+
+// This runs on the server. Load data from your database
+// and inject it into the cache before rendering.
+export async function loader() {
+  const users = await prisma.user.findMany();
+  restCache.setQueryData("/users", users);
+  return null;
+}
+
+// This component renders on both server and client.
+// On the server, it has data immediately (no loading state).
+// On the client, it hydrates with server data, then refetches in the background.
+export default function UsersPage() {
+  const { data, loading } = useQuery<User[]>("/users");
+
+  if (loading) {
+    return <div>Loading…</div>;
+  }
+
+  return (
+    <ul>
+      {data.map((user) => (
+        <li key={user.id}>{user.name}</li>
+      ))}
+    </ul>
+  );
+}
+
 ## Why
 
 - Why not using Apollo?

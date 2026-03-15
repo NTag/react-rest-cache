@@ -29,19 +29,19 @@ interface SuspenseResource<T> {
   data?: T;
   error?: Error;
   abortController: AbortController;
+  hydrated?: boolean;
 }
 
 export const useSuspenseQuery = <T>(
   path: string,
   options?: SuspenseQueryOptions
 ): UseSuspenseQueryResult<T> => {
-  const { query, unsubscribe, get } = useRestCache();
+  const { query, unsubscribe, get, getQueryKey: getCacheQueryKey, getHydratedData, ingest } = useRestCache();
   const notify = useCacheSubscription();
   const [loadingMore, setLoadingMore] = useState(false);
   const resourceRef = useRef<SuspenseResource<T> | null>(null);
 
-  const queryKey = JSON.stringify({
-    path,
+  const queryKey = getCacheQueryKey(path, {
     params: options?.params,
     method: options?.method,
     body: options?.body,
@@ -51,43 +51,60 @@ export const useSuspenseQuery = <T>(
   if (!resourceRef.current || resourceRef.current.key !== queryKey) {
     resourceRef.current?.abortController.abort();
 
-    const abortController = new AbortController();
-    const resource: SuspenseResource<T> = {
-      key: queryKey,
-      promise: undefined as any,
-      status: "pending",
-      abortController,
-    };
+    // Check for hydrated data from SSR
+    const hydratedData = getHydratedData<T>(queryKey);
+    if (hydratedData !== undefined) {
+      resourceRef.current = {
+        key: queryKey,
+        promise: Promise.resolve(hydratedData),
+        status: "resolved",
+        data: hydratedData,
+        abortController: new AbortController(),
+        hydrated: true,
+      };
+    } else {
+      const abortController = new AbortController();
+      const resource: SuspenseResource<T> = {
+        key: queryKey,
+        promise: undefined as any,
+        status: "pending",
+        abortController,
+      };
 
-    resource.promise = query<T>(
-      {
-        path,
-        signal: abortController.signal,
-        params: options?.params,
-        method: options?.method || "GET",
-        body: options?.body,
-      },
-      notify
-    )
-      .then((data) => {
-        resource.status = "resolved";
-        resource.data = data as T;
-        return data as T;
-      })
-      .catch((error) => {
-        if (abortController.signal.aborted) {
-          return undefined as any;
-        }
-        resource.status = "rejected";
-        resource.error = error;
-        throw error;
-      });
+      resource.promise = query<T>(
+        {
+          path,
+          signal: abortController.signal,
+          params: options?.params,
+          method: options?.method || "GET",
+          body: options?.body,
+        },
+        notify
+      )
+        .then((data) => {
+          resource.status = "resolved";
+          resource.data = data as T;
+          return data as T;
+        })
+        .catch((error) => {
+          if (abortController.signal.aborted) {
+            return undefined as any;
+          }
+          resource.status = "rejected";
+          resource.error = error;
+          throw error;
+        });
 
-    resourceRef.current = resource;
+      resourceRef.current = resource;
+    }
   }
 
-  // Cleanup on unmount
+  // Register cache observers for hydrated data, and cleanup on unmount
   useEffect(() => {
+    if (resourceRef.current?.hydrated && resourceRef.current.data) {
+      ingest(resourceRef.current.data, notify);
+      resourceRef.current.hydrated = false;
+    }
     return () => {
       resourceRef.current?.abortController.abort();
       unsubscribe(notify);
