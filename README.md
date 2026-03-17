@@ -190,7 +190,9 @@ Hydration is fully opt-in. If you don't call `hydrate()`, the hooks behave exact
 
 Here is a full example using [React Router v7 in framework mode](https://reactrouter.com/start/framework/routing) with data loaded from Prisma in the route loader.
 
-**`app/restCache.ts`** — shared cache instance:
+> **Important:** On the server, you must create a **new cache per request** to avoid leaking data between users. On the client, a singleton is fine.
+
+**`app/restCache.ts`** — client singleton:
 
 ```ts
 import { RestCache } from "react-rest-cache";
@@ -200,21 +202,14 @@ export const restCache = RestCache({
 });
 ```
 
-**`app/root.tsx`** — hydrate the cache on the client:
+**`app/root.tsx`** — hydrate on the client:
 
 ```tsx
-import { Links, Meta, Outlet, Scripts, useLoaderData } from "react-router";
-import { Provider, type DehydratedState } from "react-rest-cache";
+import { Links, Meta, Outlet, Scripts } from "react-router";
+import { Provider } from "react-rest-cache";
 import { restCache } from "./restCache";
 
-export function loader() {
-  return { dehydratedState: restCache.dehydrate() };
-}
-
 export default function Root() {
-  const { dehydratedState } = useLoaderData<typeof loader>();
-  restCache.hydrate(dehydratedState);
-
   return (
     <html>
       <head>
@@ -232,13 +227,14 @@ export default function Root() {
 }
 ```
 
-**`app/routes/users.tsx`** — prefetch data in the loader, render with no loading flash:
+**`app/routes/users.tsx`** — prefetch data in the loader, hydrate on the client, render with no loading flash:
 
 ```tsx
-import { useLoaderData } from "react-router";
 import { useQuery } from "react-rest-cache";
-import { restCache } from "../restCache";
+import { RestCache } from "react-rest-cache";
 import { prisma } from "../db.server";
+import { restCache } from "../restCache";
+import type { Route } from "./+types/users";
 
 type User = {
   __typename: "User";
@@ -246,18 +242,21 @@ type User = {
   name: string;
 };
 
-// This runs on the server. Load data from your database
-// and inject it into the cache before rendering.
+// This runs on the server for each request.
+// Create a fresh cache, populate it, and send the dehydrated state to the client.
 export async function loader() {
+  const serverCache = RestCache({ baseUrl: "https://api.example.com" });
   const users = await prisma.user.findMany();
-  restCache.setQueryData("/users", users);
-  return null;
+  serverCache.setQueryData("/users", users);
+  return { dehydratedState: serverCache.dehydrate() };
 }
 
 // This component renders on both server and client.
 // On the server, it has data immediately (no loading state).
 // On the client, it hydrates with server data, then refetches in the background.
-export default function UsersPage() {
+export default function UsersPage({ loaderData }: Route.ComponentProps) {
+  restCache.hydrate(loaderData.dehydratedState);
+
   const { data, loading } = useQuery<User[]>("/users");
 
   if (loading) {
