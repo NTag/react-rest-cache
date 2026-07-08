@@ -108,6 +108,7 @@ A Suspense-enabled version of `useQuery`. Instead of returning `loading` and `er
 - `data` is always `T` (never `undefined`) — the component only renders after data loads.
 - Loading state is handled by the nearest `<Suspense>` fallback.
 - Errors are caught by the nearest Error Boundary.
+- Results are cached per query key: components rendering the same query share a single request, and remounting a component reuses the cached result immediately (call `refetch` to get fresh data).
 
 ```tsx
 import { Suspense } from "react";
@@ -271,6 +272,7 @@ export default function UsersPage({ loaderData }: Route.ComponentProps) {
     </ul>
   );
 }
+```
 
 ## Why
 

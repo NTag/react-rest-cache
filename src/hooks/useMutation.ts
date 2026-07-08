@@ -19,7 +19,7 @@ type UseMutationResult<T> = readonly [
   { data: T | undefined; error: Error | undefined; loading: boolean },
 ];
 
-export const useMutation = <T>(path: string, options?: Options): UseMutationResult<T> => {
+export const useMutation = <T>(path: string, options: Options): UseMutationResult<T> => {
   const { query, unsubscribe } = useRestCache();
   const notify = useCacheSubscription();
   const [data, setData] = useState<T | undefined>(undefined);

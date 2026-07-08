@@ -97,7 +97,7 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
         notify
       )
         .then((newData) => {
-          setData(mergeFn(data as T, newData));
+          setData((prevData) => mergeFn(prevData as T, newData));
           setLoadingMore(false);
         })
         .catch((error) => {

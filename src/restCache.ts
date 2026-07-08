@@ -2,8 +2,8 @@ import { FetchError } from "./error";
 
 interface ReactRestCacheOptions {
   baseUrl: string;
-  fetchOptions?: Partial<RequestInit> & {
-    headers?: () => HeadersInit;
+  fetchOptions?: Omit<RequestInit, "headers"> & {
+    headers?: Record<string, string> | (() => Record<string, string>);
   };
 }
 
@@ -131,10 +131,10 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     };
 
     const response = await fetch(url, {
+      ...(fetchOptions || {}),
       method,
       body: getBody(),
       signal,
-      ...(fetchOptions || {}),
       headers: {
         ...(body instanceof FormData
           ? {}
