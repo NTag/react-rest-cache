@@ -20,7 +20,7 @@ describe("RestCache fetchOptions", () => {
 
     await cache.query({ path: "/things", signal: newSignal() }, noop);
 
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe("https://api.test/things");
     expect(init.headers.Authorization).toBe("Bearer token-1");
     expect(init.headers["Content-Type"]).toBe("application/json");
@@ -35,7 +35,7 @@ describe("RestCache fetchOptions", () => {
 
     await cache.query({ path: "/things", signal: newSignal() }, noop);
 
-    const [, init] = fetchMock.mock.calls[0];
+    const [, init] = fetchMock.mock.calls[0]!;
     expect(init.headers["X-Custom"]).toBe("yes");
     expect(init.credentials).toBe("include");
   });
@@ -50,7 +50,7 @@ describe("RestCache fetchOptions", () => {
     const signal = newSignal();
     await cache.query({ path: "/things", method: "POST", body: { a: 1 }, signal }, noop);
 
-    const [, init] = fetchMock.mock.calls[0];
+    const [, init] = fetchMock.mock.calls[0]!;
     expect(init.method).toBe("POST");
     expect(init.body).toBe(JSON.stringify({ a: 1 }));
     expect(init.signal).toBe(signal);

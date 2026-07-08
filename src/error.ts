@@ -3,11 +3,12 @@ export class FetchError extends Error {
   public data: any;
 
   constructor(public response: Response) {
-    super("Fetch error");
+    super(`HTTP ${response.status} error while fetching ${response.url}`);
+    this.name = "FetchError";
+    this.status = response.status;
   }
 
   async process() {
-    this.status = this.response.status;
     if (this.response.headers.get("content-type")?.includes("json")) {
       this.data = await this.response.json();
     } else {
