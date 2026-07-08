@@ -1,12 +1,16 @@
-## Testing react-rest-cache in a React app
+# Testing react-rest-cache in a React app
 
-Go in the directory of the library and then:
+A small Vite app with a mock API (see `vite.config.js`) exercising `useQuery`,
+`useMutation` and the cache synchronization between components: fetching
+`/api/search` or posting to `/api/users` returns an updated version of
+`trip1`, and both `Trips` components re-render with the new name.
+
+From the library root:
 
 ```bash
 npm install
 npm run build
-rm -rf node_modules/ # This is important because if you don’t, due to a npm limitation on peer dependencies, launching the CRA app will fail
 cd tests/react-app/
 npm install
-npm start
+npm run dev
 ```
