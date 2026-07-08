@@ -30,6 +30,21 @@ const App = () => {
 };
 ```
 
+The `Provider` is required: hooks throw a clear error when no cache is found in context. You can access the cache from any component with `useRestCache()`.
+
+Use `fetchOptions` to customize every request, e.g. for authentication:
+
+```tsx
+const restCache = RestCache({
+  baseUrl: "https://api.example.com",
+  fetchOptions: {
+    credentials: "include",
+    // A plain object, or a function called before each request:
+    headers: () => ({ Authorization: `Bearer ${getToken()}` }),
+  },
+});
+```
+
 ## `useQuery`
 
 ```tsx
@@ -101,6 +116,8 @@ const { data, error, loading, refetch, fetchMore, loadingMore } = useQuery<T>(pa
 });
 ```
 
+`refetch()` revalidates in the background when data for the current query is already displayed. `loading` is only `true` during the initial load and when the query key (path, params, method or body) changes.
+
 ## `useSuspenseQuery`
 
 A Suspense-enabled version of `useQuery`. Instead of returning `loading` and `error`, it integrates with React's `<Suspense>` and Error Boundaries.
@@ -159,17 +176,56 @@ const MyButton = () => {
     method: "PUT",
   });
 
+  const onClick = () => {
+    // mutate rejects on error so it can be awaited; the error is also
+    // exposed in the `error` state — catch the rejection if you don't await.
+    mutate({ body: { name: "John" } }).catch(() => {});
+  };
+
   return (
     <div>
       {error ? <div>Error: {error.message}</div> : null}
       {loading ? <div>Loading…</div> : null}
-      <button onClick={() => mutate({ body: { name: "John" } })}>Update</button>
+      <button onClick={onClick}>Update</button>
     </div>
   );
 };
 ```
 
 When a mutation returns an object with the same `__typename` and `id` as a cached object, the cache is updated and all components displaying that object re-render automatically.
+
+For creations and deletions — where updating the cached object is not enough because a **list** changed — pass `invalidateQueries` to refetch the affected queries after the mutation succeeds:
+
+```tsx
+const [createUser] = useMutation<User>("/users", {
+  method: "POST",
+  invalidateQueries: ["/users"],
+});
+```
+
+## Cache synchronization and immutability
+
+All objects with a `__typename` and an `id` are merged into a normalized cache, whatever query or mutation they arrive from. Components automatically re-render when an entity they display changes — and only then: responses that don't change anything don't cause re-renders.
+
+The data returned by the hooks is **immutable**: when an entity changes, it gets a new object identity (as does everything referencing it), while unchanged entities keep theirs. This means `React.memo`, `useMemo`/`useEffect` dependencies, and the React Compiler work correctly with cached data.
+
+## Invalidation and eviction
+
+```tsx
+import { useRestCache } from "react-rest-cache";
+
+const restCache = useRestCache(); // or use the RestCache instance directly
+
+// Refetches mounted queries whose path is "/users" or starts with "/users/",
+// and drops matching cached (hydrated or suspense) results so future mounts
+// fetch fresh data. Call it without argument to invalidate everything.
+restCache.invalidateQueries("/users");
+
+// Removes an entity from the cache and notifies the components observing it.
+// Queries keep showing their last data until refetched, so combine with
+// invalidateQueries for delete flows.
+restCache.evict({ __typename: "User", id: "id1" });
+```
 
 ## SSR / Hydration
 
@@ -182,6 +238,7 @@ Hydration is fully opt-in. If you don't call `hydrate()`, the hooks behave exact
 
 ### API
 
+- `<HydrationBoundary state={dehydratedState}>` — hydrates the cache from context so the queries below it render with data immediately.
 - `cache.prefetchQuery(path, options?)` — fetches data via HTTP and stores it in the query cache.
 - `cache.setQueryData(path, data, options?)` — injects data directly into the query cache (e.g. from a database query).
 - `cache.dehydrate()` — serializes the query cache into a plain object for transport to the client.
@@ -191,26 +248,38 @@ Hydration is fully opt-in. If you don't call `hydrate()`, the hooks behave exact
 
 Here is a full example using [React Router v7 in framework mode](https://reactrouter.com/start/framework/routing) with data loaded from Prisma in the route loader.
 
-> **Important:** On the server, you must create a **new cache per request** to avoid leaking data between users. On the client, a singleton is fine.
+> **Important:** On the server, every request must get its **own cache** to avoid leaking data between users. The pattern below guarantees this: the cache lives in React state, so each server-rendered request creates a fresh one, while the browser keeps a singleton.
 
-**`app/restCache.ts`** — client singleton:
+**`app/restCache.ts`**:
 
 ```ts
-import { RestCache } from "react-rest-cache";
+import { RestCache, RestCacheType } from "react-rest-cache";
 
-export const restCache = RestCache({
-  baseUrl: "https://api.example.com",
-});
+const makeRestCache = () => RestCache({ baseUrl: "https://api.example.com" });
+
+let browserRestCache: RestCacheType | undefined;
+
+export const getRestCache = () => {
+  if (typeof document === "undefined") {
+    // Server: a new cache for every call (i.e. every request).
+    return makeRestCache();
+  }
+  // Browser: a singleton, so the cache survives navigations.
+  return (browserRestCache ??= makeRestCache());
+};
 ```
 
-**`app/root.tsx`** — hydrate on the client:
+**`app/root.tsx`**:
 
 ```tsx
+import { useState } from "react";
 import { Links, Meta, Outlet, Scripts } from "react-router";
 import { Provider } from "react-rest-cache";
-import { restCache } from "./restCache";
+import { getRestCache } from "./restCache";
 
 export default function Root() {
+  const [restCache] = useState(getRestCache);
+
   return (
     <html>
       <head>
@@ -228,13 +297,11 @@ export default function Root() {
 }
 ```
 
-**`app/routes/users.tsx`** — prefetch data in the loader, hydrate on the client, render with no loading flash:
+**`app/routes/users.tsx`** — prefetch data in the loader, hydrate through `HydrationBoundary`, render with no loading flash:
 
 ```tsx
-import { useQuery } from "react-rest-cache";
-import { RestCache } from "react-rest-cache";
+import { HydrationBoundary, RestCache, useQuery } from "react-rest-cache";
 import { prisma } from "../db.server";
-import { restCache } from "../restCache";
 import type { Route } from "./+types/users";
 
 type User = {
@@ -252,15 +319,12 @@ export async function loader() {
   return { dehydratedState: serverCache.dehydrate() };
 }
 
-// This component renders on both server and client.
-// On the server, it has data immediately (no loading state).
-// On the client, it hydrates with server data, then refetches in the background.
-export default function UsersPage({ loaderData }: Route.ComponentProps) {
-  restCache.hydrate(loaderData.dehydratedState);
-
+// UsersList renders on both server and client with data immediately (no
+// loading state), then revalidates in the background on the client.
+function UsersList() {
   const { data, loading } = useQuery<User[]>("/users");
 
-  if (loading) {
+  if (loading || !data) {
     return <div>Loading…</div>;
   }
 
@@ -270,6 +334,14 @@ export default function UsersPage({ loaderData }: Route.ComponentProps) {
         <li key={user.id}>{user.name}</li>
       ))}
     </ul>
+  );
+}
+
+export default function UsersPage({ loaderData }: Route.ComponentProps) {
+  return (
+    <HydrationBoundary state={loaderData.dehydratedState}>
+      <UsersList />
+    </HydrationBoundary>
   );
 }
 ```
