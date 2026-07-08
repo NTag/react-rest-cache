@@ -7,6 +7,9 @@ import { useCacheSubscription } from "./useCacheSubscription";
 interface Options {
   params?: Record<string, string>;
   method: HttpMethod;
+  // Paths of queries to invalidate (refetch) after a successful mutation,
+  // e.g. ["/users"] after creating or deleting a user.
+  invalidateQueries?: string[];
 }
 
 interface MutateOptions {
@@ -20,8 +23,8 @@ type UseMutationResult<T> = readonly [
 ];
 
 export const useMutation = <T>(path: string, options: Options): UseMutationResult<T> => {
-  const { query, unsubscribe } = useRestCache();
-  const notify = useCacheSubscription();
+  const { query, unsubscribe, invalidateQueries } = useRestCache();
+  const { notify } = useCacheSubscription();
   const [data, setData] = useState<T | undefined>(undefined);
   const [error, setError] = useState<Error | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -41,7 +44,7 @@ export const useMutation = <T>(path: string, options: Options): UseMutationResul
             ? `${path}${mutationOptions.subPath}`
             : path,
           signal,
-          params: options?.params || undefined,
+          params: options.params || undefined,
           method: options.method,
           body: mutationOptions?.body,
         },
@@ -51,6 +54,10 @@ export const useMutation = <T>(path: string, options: Options): UseMutationResul
           setData(newData);
           setLoading(false);
           setError(undefined);
+
+          options.invalidateQueries?.forEach((invalidatePath) =>
+            invalidateQueries(invalidatePath)
+          );
 
           return newData as T;
         })

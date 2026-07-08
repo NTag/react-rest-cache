@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useRestCache } from "../context";
 import type { HttpMethod } from "../restCache";
@@ -29,8 +29,9 @@ interface UseQueryResult<T> {
 }
 
 export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> => {
-  const { query, unsubscribe, get, getQueryKey, getHydratedData } = useRestCache();
-  const notify = useCacheSubscription();
+  const { query, unsubscribe, get, getQueryKey, getHydratedData, materialize, registerQuery } =
+    useRestCache();
+  const { version, notify } = useCacheSubscription();
 
   const queryKey = getQueryKey(path, {
     params: options?.params,
@@ -39,14 +40,23 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
   });
 
   const [hydratedData] = useState(() => getHydratedData<T>(queryKey));
-  const [data, setData] = useState<T | undefined>(hydratedData ?? undefined);
+  const [rawData, setRawData] = useState<T | undefined>(hydratedData ?? undefined);
   const [error, setError] = useState<Error | undefined>(undefined);
   const [loading, setLoading] = useState(options?.skip || hydratedData !== undefined ? false : true);
   const [loadingMore, setLoadingMore] = useState(false);
   const abortControllersRef = useRef(new Set<AbortController>());
+  // Which query key the current rawData belongs to. Refetches for a key
+  // whose data is already displayed happen in the background (no loading
+  // flip): hydrated mounts, invalidateQueries and manual refetches
+  // revalidate without a loading flash.
+  const dataKeyRef = useRef<string | null>(
+    hydratedData !== undefined ? queryKey : null
+  );
 
   const refetch = useCallback(() => {
-    setLoading(true);
+    if (dataKeyRef.current !== queryKey) {
+      setLoading(true);
+    }
 
     const abortController = new AbortController();
     abortControllersRef.current.add(abortController);
@@ -63,7 +73,8 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
       notify
     )
       .then((newData) => {
-        setData(newData);
+        setRawData(newData);
+        dataKeyRef.current = queryKey;
         setLoading(false);
         setError(undefined);
       })
@@ -74,7 +85,11 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
 
         setError(error);
         setLoading(false);
-        setData(undefined);
+        setRawData(undefined);
+        dataKeyRef.current = null;
+      })
+      .finally(() => {
+        abortControllersRef.current.delete(abortController);
       });
   }, [path, JSON.stringify(options)]);
 
@@ -97,7 +112,7 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
         notify
       )
         .then((newData) => {
-          setData((prevData) => mergeFn(prevData as T, newData));
+          setRawData((prevData) => mergeFn(prevData as T, newData as T));
           setLoadingMore(false);
         })
         .catch((error) => {
@@ -107,6 +122,9 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
 
           setError(error);
           setLoadingMore(false);
+        })
+        .finally(() => {
+          abortControllersRef.current.delete(abortController);
         });
     },
     [path, JSON.stringify(options)]
@@ -126,6 +144,23 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
       unsubscribe(notify);
     };
   }, [refetch, options?.skip]);
+
+  // Register with the cache so invalidateQueries(path) can refetch this
+  // query while it is mounted.
+  useEffect(() => {
+    if (options?.skip) {
+      return;
+    }
+    return registerQuery({ queryKey, path, refetch });
+  }, [refetch, queryKey, path, options?.skip]);
+
+  // Re-read the data from the cache whenever an observed entity changes
+  // (`version` bump): unchanged entities keep their identity, updated ones
+  // get a new immutable snapshot.
+  const data = useMemo(
+    () => (rawData === undefined ? undefined : (materialize(rawData) as T)),
+    [rawData, version]
+  );
 
   const dataFromQueryOrCache: T | undefined =
     data ??
