@@ -49,6 +49,29 @@ describe("useQuery", () => {
     expect(result.current.data?.map((i) => i.id)).toEqual(["1", "2", "3"]);
   });
 
+  it("ignores a superseded refetch that resolves after the newer one", async () => {
+    let resolveStale: (response: Response) => void = () => {};
+    const fetchMock = stubFetch()
+      .mockResolvedValueOnce(jsonResponse([item("1", "one")]))
+      .mockReturnValueOnce(new Promise<Response>((resolve) => (resolveStale = resolve)))
+      .mockResolvedValueOnce(jsonResponse([item("1", "fresh")]));
+    const restCache = RestCache({ baseUrl: "" });
+    const wrapper = createWrapper(restCache);
+
+    const { result } = renderHook(() => useQuery<Item[]>("/items"), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.refetch());
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.data?.[0]?.label).toBe("fresh"));
+    expect(fetchMock.mock.calls[1]?.[1].signal.aborted).toBe(true);
+
+    await act(async () => resolveStale(jsonResponse([item("1", "stale")])));
+    expect(result.current.data?.[0]?.label).toBe("fresh");
+    expect(result.current.error).toBeUndefined();
+    expect(restCache.get<Item>({ __typename: "Item", id: "1" })?.label).toBe("fresh");
+  });
+
   it("exposes a FetchError with status and body on HTTP errors", async () => {
     stubFetch().mockResolvedValueOnce(jsonResponse({ message: "nope" }, 500));
     const wrapper = createWrapper(RestCache({ baseUrl: "" }));

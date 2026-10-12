@@ -327,6 +327,10 @@ export const RestCache = (options: ReactRestCacheOptions) => {
 
     const data = (await response.json()) as RestType;
 
+    // A request aborted after its response arrived (e.g. superseded by a
+    // newer refetch) must not write its now-stale data into the cache.
+    signal.throwIfAborted();
+
     return ingest(data, observer) as RestType;
   };
 

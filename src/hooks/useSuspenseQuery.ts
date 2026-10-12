@@ -141,11 +141,20 @@ export const useSuspenseQuery = <T>(
     };
   }, []);
 
+  // The latest refetch: starting a new one aborts it, so an older response
+  // resolving last can't overwrite newer data (e.g. after a header change).
+  const refetchControllerRef = useRef<AbortController | null>(null);
+
   const refetch = useCallback(() => {
+    refetchControllerRef.current?.abort();
+    const abortController = new AbortController();
+    refetchControllerRef.current = abortController;
+    const signal = abortController.signal;
+
     query<T>(
       {
         path,
-        signal: new AbortController().signal,
+        signal,
         params: options?.params,
         method: options?.method || "GET",
         body: options?.body,
@@ -160,6 +169,10 @@ export const useSuspenseQuery = <T>(
         notify();
       })
       .catch((error) => {
+        if (signal.aborted) {
+          return;
+        }
+
         const current = resources.get(queryKey);
         if (current) {
           current.status = "rejected";

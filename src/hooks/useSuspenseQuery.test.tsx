@@ -97,6 +97,26 @@ describe("useSuspenseQuery", () => {
     expect(await screen.findByText("failed: boom")).toBeDefined();
   });
 
+  it("ignores a superseded refetch that resolves after the newer one", async () => {
+    let resolveStale: (response: Response) => void = () => {};
+    stubFetch()
+      .mockResolvedValueOnce(jsonResponse({ __typename: "Obj", id: "1", name: "John" }))
+      .mockReturnValueOnce(new Promise<Response>((resolve) => (resolveStale = resolve)))
+      .mockResolvedValueOnce(jsonResponse({ __typename: "Obj", id: "1", name: "Fresh" }));
+
+    render(tree(RestCache({ baseUrl: "" }), "/user"));
+    await screen.findByText("John");
+
+    act(() => lastRefetch());
+    act(() => lastRefetch());
+    await screen.findByText("Fresh");
+
+    await act(async () =>
+      resolveStale(jsonResponse({ __typename: "Obj", id: "1", name: "Stale" }))
+    );
+    expect(screen.getByText("Fresh")).toBeDefined();
+  });
+
   it("subscribes hydrated data to cache updates after a query key change", async () => {
     const fetchMock = stubFetch();
     const restCache = RestCache({ baseUrl: "" });

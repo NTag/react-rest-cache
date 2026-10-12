@@ -53,12 +53,18 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
     hydratedData !== undefined ? queryKey : null
   );
 
+  // The latest refetch: starting a new one aborts it, so an older response
+  // resolving last can't overwrite newer data (e.g. after a header change).
+  const refetchControllerRef = useRef<AbortController | null>(null);
+
   const refetch = useCallback(() => {
     if (dataKeyRef.current !== queryKey) {
       setLoading(true);
     }
 
+    refetchControllerRef.current?.abort();
     const abortController = new AbortController();
+    refetchControllerRef.current = abortController;
     abortControllersRef.current.add(abortController);
     const signal = abortController.signal;
 
