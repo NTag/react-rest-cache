@@ -4,7 +4,7 @@ import { useRestCache } from "../context";
 import type { HttpMethod } from "../restCache";
 import { useCacheSubscription } from "./useCacheSubscription";
 
-interface SuspenseQueryOptions {
+export interface SuspenseQueryOptions {
   params?: Record<string, string>;
   method?: HttpMethod;
   body?: any;
@@ -12,7 +12,7 @@ interface SuspenseQueryOptions {
 
 type MergeFn<T> = (prevData: T, newData: T) => T;
 
-interface UseSuspenseQueryResult<T> {
+export interface UseSuspenseQueryResult<T> {
   data: T;
   refetch: () => void;
   fetchMore: (

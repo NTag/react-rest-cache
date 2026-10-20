@@ -4,7 +4,7 @@ import { useRestCache } from "../context";
 import type { HttpMethod } from "../restCache";
 import { useCacheSubscription } from "./useCacheSubscription";
 
-interface Options {
+export interface UseQueryOptions {
   params?: Record<string, string>;
   skip?: boolean;
   prefetchFromCache?: {
@@ -19,16 +19,16 @@ interface Options {
 
 type MergeFn<T> = (prevData: T, newData: T) => T;
 
-interface UseQueryResult<T> {
+export interface UseQueryResult<T> {
   data: T | undefined;
   error: Error | undefined;
   loading: boolean;
   refetch: () => void;
-  fetchMore: (mergeFn: MergeFn<T>, optionsMore?: Pick<Options, "params">) => void;
+  fetchMore: (mergeFn: MergeFn<T>, optionsMore?: Pick<UseQueryOptions, "params">) => void;
   loadingMore: boolean;
 }
 
-export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> => {
+export const useQuery = <T>(path: string, options?: UseQueryOptions): UseQueryResult<T> => {
   const { query, unsubscribe, get, getQueryKey, getHydratedData, materialize, registerQuery } =
     useRestCache();
   const { version, notify } = useCacheSubscription();
@@ -100,7 +100,7 @@ export const useQuery = <T>(path: string, options?: Options): UseQueryResult<T> 
   }, [path, JSON.stringify(options)]);
 
   const fetchMore = useCallback(
-    (mergeFn: MergeFn<T>, optionsMore?: Pick<Options, "params">) => {
+    (mergeFn: MergeFn<T>, optionsMore?: Pick<UseQueryOptions, "params">) => {
       setLoadingMore(true);
 
       const abortController = new AbortController();

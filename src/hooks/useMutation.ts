@@ -4,7 +4,7 @@ import { useRestCache } from "../context";
 import type { HttpMethod } from "../restCache";
 import { useCacheSubscription } from "./useCacheSubscription";
 
-interface Options {
+export interface UseMutationOptions {
   params?: Record<string, string>;
   method: HttpMethod;
   // Paths of queries to invalidate (refetch) after a successful mutation,
@@ -12,17 +12,17 @@ interface Options {
   invalidateQueries?: string[];
 }
 
-interface MutateOptions {
+export interface MutateOptions {
   body?: any;
   subPath?: string;
 }
 
-type UseMutationResult<T> = readonly [
+export type UseMutationResult<T> = readonly [
   (mutationOptions?: MutateOptions) => Promise<T | void>,
   { data: T | undefined; error: Error | undefined; loading: boolean },
 ];
 
-export const useMutation = <T>(path: string, options: Options): UseMutationResult<T> => {
+export const useMutation = <T>(path: string, options: UseMutationOptions): UseMutationResult<T> => {
   const { query, unsubscribe, invalidateQueries } = useRestCache();
   const { notify } = useCacheSubscription();
   const [data, setData] = useState<T | undefined>(undefined);
