@@ -225,7 +225,49 @@ restCache.invalidateQueries("/users");
 // Queries keep showing their last data until refetched, so combine with
 // invalidateQueries for delete flows.
 restCache.evict({ __typename: "User", id: "id1" });
+
+// Merges entities into the cache from outside a query (a WebSocket message,
+// say): the components showing them re-render. Nothing gets subscribed.
+restCache.write({ __typename: "User", id: "id1", name: "Johnny" });
 ```
+
+## Live updates
+
+The server can push changes over [Server-Sent Events](https://developer.mozilla.org/docs/Web/API/Server-sent_events). Mount `useLiveUpdates` once, near the `Provider`, and every component reading the cache stays up to date:
+
+```tsx
+import { useLiveUpdates } from "react-rest-cache";
+
+const Live = () => {
+  // A path starting with "/" is taken from the cache's baseUrl, like a query's.
+  useLiveUpdates("/events", {
+    withCredentials: true, // send cookies when the stream is on another origin
+    onError: (error) => console.warn(error), // a message that couldn't be read
+  });
+  return null;
+};
+```
+
+Outside React, `connectLiveUpdates(restCache, "/events", options)` does the same and returns a function that closes the stream.
+
+The server sends three kinds of events, each with JSON data:
+
+```
+event: entities
+data: [{"__typename":"User","id":"id1","name":"Johnny"}]
+
+event: invalidate
+data: ["/users"]
+
+event: evict
+data: [{"__typename":"User","id":"id2"}]
+```
+
+- `entities`: any JSON holding objects with a `__typename` and an `id`. They're merged as a query's response would be, so sending an entity that didn't change re-renders nothing.
+- `invalidate`: paths whose queries refetch, as with `invalidateQueries`: for lists that gained or lost items.
+- `evict`: entities removed from the cache.
+
+The browser reconnects by itself after an error. Since messages may have been missed meanwhile, every query refetches once the stream is back. To use another event source (a polyfill, say), pass `eventSource: (url, init) => …`.
 
 ## SSR / Hydration
 

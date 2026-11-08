@@ -122,9 +122,11 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     }
   };
 
+  // `observer` is subscribed to every entity met; without one (`write`),
+  // entities are merged and their observers notified, nothing more.
   const normalize = (
     value: unknown,
-    observer: Observer,
+    observer: Observer | undefined,
     notified: Set<Observer>
   ): unknown => {
     if (value === null || typeof value !== "object") {
@@ -140,7 +142,9 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     // values back. Just subscribe the observer.
     const existingEntry = snapshotToEntry.get(value);
     if (existingEntry) {
-      addObserverToReachable(existingEntry, observer, new Set());
+      if (observer) {
+        addObserverToReachable(existingEntry, observer, new Set());
+      }
       return existingEntry;
     }
 
@@ -183,7 +187,9 @@ export const RestCache = (options: ReactRestCacheOptions) => {
       entry.version++;
       entry.observers.forEach((obs) => notified.add(obs));
     }
-    entry.observers.add(observer);
+    if (observer) {
+      entry.observers.add(observer);
+    }
 
     return entry;
   };
@@ -272,6 +278,14 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     const normalized = normalize(data, observer, notified);
     notified.forEach((obs) => obs());
     return materialize(normalized) as T;
+  };
+
+  // Merges entities into the cache from outside a query (a live update, say):
+  // the components showing them re-render, and nothing is subscribed.
+  const write = (data: unknown): void => {
+    const notified = new Set<Observer>();
+    normalize(data, undefined, notified);
+    notified.forEach((obs) => obs());
   };
 
   const query = async <RestType>(
@@ -484,6 +498,7 @@ export const RestCache = (options: ReactRestCacheOptions) => {
   };
 
   return {
+    baseUrl,
     query,
     unsubscribe,
     get,
@@ -497,6 +512,7 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     getHydratedData,
     setQueryData,
     ingest,
+    write,
     materialize,
     suspenseResources,
   };

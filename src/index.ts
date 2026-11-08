@@ -1,6 +1,9 @@
 export * from "./hooks/useQuery";
 export * from "./hooks/useMutation";
 export * from "./hooks/useSuspenseQuery";
+export * from "./hooks/useLiveUpdates";
+export { connectLiveUpdates } from "./live";
+export type { EventSourceLike, LiveUpdatesOptions } from "./live";
 export { Provider, useRestCache, HydrationBoundary } from "./context";
 export * from "./restCache";
 export { FetchError } from "./error";
