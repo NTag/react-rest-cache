@@ -97,4 +97,64 @@ describe("useMutation", () => {
     expect(error.status).toBe(422);
     expect(result.current[1].loading).toBe(false);
   });
+
+  it("runs every call to the end, even several at once", async () => {
+    let answerFirst: (response: Response) => void = () => {};
+    const fetchMock = stubFetch()
+      .mockReturnValueOnce(new Promise<Response>((resolve) => (answerFirst = resolve)))
+      .mockResolvedValueOnce(jsonResponse({ __typename: "User", id: "2", name: "Two" }));
+    const wrapper = createWrapper(RestCache({ baseUrl: "" }));
+
+    const { result } = renderHook(
+      () => useMutation<User>("/users/", { method: "DELETE" }),
+      { wrapper }
+    );
+
+    let first: Promise<User> = Promise.resolve({} as User);
+    act(() => {
+      first = result.current[0]({ subPath: "1/" });
+    });
+    await act(async () => {
+      await expect(result.current[0]({ subPath: "2/" })).resolves.toMatchObject({ id: "2" });
+    });
+    // The first one is still in flight.
+    expect(result.current[1].loading).toBe(true);
+    expect(fetchMock.mock.calls[0]?.[1].signal.aborted).toBe(false);
+
+    await act(async () => {
+      answerFirst(jsonResponse({ __typename: "User", id: "1", name: "One" }));
+      await expect(first).resolves.toMatchObject({ id: "1" });
+    });
+    expect(result.current[1].loading).toBe(false);
+  });
+
+  it("still updates the cache when answered after unmount, without touching its state", async () => {
+    let answer: (response: Response) => void = () => {};
+    stubFetch()
+      .mockResolvedValueOnce(jsonResponse([{ __typename: "User", id: "1", name: "John" }]))
+      .mockReturnValueOnce(new Promise<Response>((resolve) => (answer = resolve)));
+    const errors = vi.spyOn(console, "error");
+    const wrapper = createWrapper(RestCache({ baseUrl: "" }));
+
+    const query = renderHook(() => useQuery<User[]>("/users"), { wrapper });
+    await waitFor(() => expect(query.result.current.loading).toBe(false));
+    const mutation = renderHook(
+      () => useMutation<User>("/users/1", { method: "PUT" }),
+      { wrapper }
+    );
+
+    let sent: Promise<User> = Promise.resolve({} as User);
+    act(() => {
+      sent = mutation.result.current[0]({ body: { name: "Jane" } });
+    });
+    mutation.unmount();
+    await act(async () => {
+      answer(jsonResponse({ __typename: "User", id: "1", name: "Jane" }));
+      await expect(sent).resolves.toMatchObject({ name: "Jane" });
+    });
+
+    expect(query.result.current.data?.[0]?.name).toBe("Jane");
+    expect(errors).not.toHaveBeenCalled();
+    errors.mockRestore();
+  });
 });

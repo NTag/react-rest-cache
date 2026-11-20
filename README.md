@@ -196,6 +196,8 @@ const MyButton = () => {
 
 When a mutation returns an object with the same `__typename` and `id` as a cached object, the cache is updated and all components displaying that object re-render automatically.
 
+A mutation is never aborted: a write already sent can't be taken back, only its answer lost. Calls made at once all run to the end (`loading` stays `true` until the last one answers), and a call answered after its component unmounted still updates the cache — the hook's own state is left alone.
+
 For creations and deletions — where updating the cached object is not enough because a **list** changed — pass `invalidateQueries` to refetch the affected queries after the mutation succeeds:
 
 ```tsx

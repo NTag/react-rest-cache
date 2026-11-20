@@ -18,7 +18,7 @@ export interface MutateOptions {
 }
 
 export type UseMutationResult<T> = readonly [
-  (mutationOptions?: MutateOptions) => Promise<T | void>,
+  (mutationOptions?: MutateOptions) => Promise<T>,
   { data: T | undefined; error: Error | undefined; loading: boolean },
 ];
 
@@ -28,56 +28,69 @@ export const useMutation = <T>(path: string, options: UseMutationOptions): UseMu
   const [data, setData] = useState<T | undefined>(undefined);
   const [error, setError] = useState<Error | undefined>(undefined);
   const [loading, setLoading] = useState(false);
-  const abortControllerRef = useRef(new AbortController());
+  // Calls in flight: each one runs to the end. A write already sent can't be
+  // taken back by aborting it, only its answer lost (and the cache with it).
+  const inFlightRef = useRef(0);
+  const mountedRef = useRef(true);
 
   const mutate = useCallback(
     (mutationOptions?: MutateOptions) => {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
+      inFlightRef.current += 1;
+      if (mountedRef.current) {
+        setLoading(true);
+      }
 
-      setLoading(true);
+      // Answered after unmount: the cache is updated (other components see
+      // it), but this hook's state is left alone and it stops observing.
+      const settle = (update: () => void) => {
+        inFlightRef.current -= 1;
+        if (!mountedRef.current) {
+          unsubscribe(notify);
+          return;
+        }
+        update();
+        setLoading(inFlightRef.current > 0);
+      };
 
       return query<T>(
         {
           path: mutationOptions?.subPath
             ? `${path}${mutationOptions.subPath}`
             : path,
-          signal,
+          // Never aborted (see above).
+          signal: new AbortController().signal,
           params: options.params || undefined,
           method: options.method,
           body: mutationOptions?.body,
         },
         notify
-      )
-        .then((newData) => {
-          setData(newData);
-          setLoading(false);
-          setError(undefined);
+      ).then(
+        (newData) => {
+          settle(() => {
+            setData(newData);
+            setError(undefined);
+          });
 
           options.invalidateQueries?.forEach((invalidatePath) =>
             invalidateQueries(invalidatePath)
           );
 
           return newData as T;
-        })
-        .catch((error) => {
-          if (signal.aborted) {
-            return;
-          }
-
-          setError(error);
-          setLoading(false);
+        },
+        (error) => {
+          settle(() => setError(error));
 
           return Promise.reject(error);
-        });
+        }
+      );
     },
     [path, JSON.stringify(options)]
   );
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
-      abortControllerRef.current.abort();
+      mountedRef.current = false;
       unsubscribe(notify);
     };
   }, []);

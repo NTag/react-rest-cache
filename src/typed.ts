@@ -169,7 +169,7 @@ type TypedMutate<Paths, Prefix extends string, M extends Method, P extends strin
     subPath?: SubPath;
     body?: BodyOf<OperationOf<Paths, Prefix, M, `${P}${SubPath}`>>;
   }
-) => Promise<ResponseOf<OperationOf<Paths, Prefix, M, `${P}${SubPath}`>> | void>;
+) => Promise<ResponseOf<OperationOf<Paths, Prefix, M, `${P}${SubPath}`>>>;
 
 type TypedUseMutationResult<
   Paths,
