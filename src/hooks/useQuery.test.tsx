@@ -84,4 +84,18 @@ describe("useQuery", () => {
     expect(error.status).toBe(500);
     expect(error.data).toEqual({ message: "nope" });
   });
+
+  it("keeps objects with a null id apart: they are not entities yet", async () => {
+    stubFetch()
+      .mockResolvedValueOnce(jsonResponse({ __typename: "Item", id: null, label: "one" }))
+      .mockResolvedValueOnce(jsonResponse({ __typename: "Item", id: null, label: "two" }));
+    const wrapper = createWrapper(RestCache({ baseUrl: "" }));
+
+    const first = renderHook(() => useQuery<Item>("/items/1/draft"), { wrapper });
+    await waitFor(() => expect(first.result.current.data).toBeDefined());
+    const second = renderHook(() => useQuery<Item>("/items/2/draft"), { wrapper });
+    await waitFor(() => expect(second.result.current.data?.label).toBe("two"));
+
+    expect(first.result.current.data?.label).toBe("one");
+  });
 });

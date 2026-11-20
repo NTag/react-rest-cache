@@ -149,7 +149,9 @@ export const RestCache = (options: ReactRestCacheOptions) => {
     }
 
     const record = value as Record<string, unknown>;
-    if (!("id" in record) || !("__typename" in record)) {
+    // An entity needs a real id: an object without one yet (an unsaved
+    // resource, `id: null`) is a plain value, not one shared entity.
+    if (record.id == null || record.__typename == null) {
       const normalized: Record<string, unknown> = {};
       Object.keys(record).forEach((key) => {
         normalized[key] = normalize(record[key], observer, notified);

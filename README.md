@@ -6,6 +6,8 @@ All objects in the API should have:
 - a `__typename` string field (e.g. `User`, `Post`, etc…)
 - an `id` string field (e.g. `id1`, `id2`, etc…)
 
+An object whose `id` is `null` (a resource not created yet) is not an entity: it stays a plain value of its query, not shared with any other.
+
 The library will synchronize all objects and trigger re-renders when the cache is updated.
 
 It aims to provide a similar experience to Apollo client but with REST APIs.
