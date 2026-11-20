@@ -118,7 +118,7 @@ const { data, error, loading, refetch, fetchMore, loadingMore } = useQuery<T>(pa
 });
 ```
 
-`refetch()` revalidates in the background when data for the current query is already displayed. `loading` is only `true` during the initial load and when the query key (path, params, method or body) changes. A new `refetch()` aborts the previous one still in flight, so a slower, older response never overwrites newer data.
+`refetch()` revalidates in the background when data for the current query is already displayed. `loading` is only `true` during the initial load and when the query key (path, params, method or body) changes. A new `refetch()` aborts the previous one still in flight, so a slower, older response never overwrites newer data. When a background refetch fails, the data stays displayed and `error` is set; it is cleared by the next successful fetch.
 
 ## `useSuspenseQuery`
 

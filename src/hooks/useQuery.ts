@@ -91,8 +91,11 @@ export const useQuery = <T>(path: string, options?: UseQueryOptions): UseQueryRe
 
         setError(error);
         setLoading(false);
-        setRawData(undefined);
-        dataKeyRef.current = null;
+        // A failed background refetch keeps the data shown, with the error;
+        // a failed first load (or new query key) has nothing to keep.
+        if (dataKeyRef.current !== queryKey) {
+          setRawData(undefined);
+        }
       })
       .finally(() => {
         abortControllersRef.current.delete(abortController);

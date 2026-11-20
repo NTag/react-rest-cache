@@ -98,4 +98,26 @@ describe("useQuery", () => {
 
     expect(first.result.current.data?.label).toBe("one");
   });
+
+  it("keeps the data shown when a background refetch fails, with the error", async () => {
+    stubFetch()
+      .mockResolvedValueOnce(jsonResponse([item("1", "one")]))
+      .mockResolvedValueOnce(jsonResponse({ message: "down" }, 502))
+      .mockResolvedValueOnce(jsonResponse([item("1", "back")]));
+    const wrapper = createWrapper(RestCache({ baseUrl: "" }));
+
+    const { result } = renderHook(() => useQuery<Item[]>("/items"), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.error).toBeDefined());
+    expect(result.current.data?.[0]?.label).toBe("one");
+    expect(result.current.loading).toBe(false);
+
+    // Still the same query: the next refetch is in the background too.
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.data?.[0]?.label).toBe("back"));
+    expect(result.current.error).toBeUndefined();
+    expect(result.current.loading).toBe(false);
+  });
 });
